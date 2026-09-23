@@ -1,0 +1,88 @@
+.summary-btn {
+    color: white; /* Sets the text color for a button */
+    background-color: #0a18b354; /* Sets the background color for the button */
+    padding: 15px; /* Increases size of button */
+    margin-inline: 20px; /* Adds spacing around button */
+    border-radius: 10px;
+}
+
+.search-buttons {
+    gap: 10px; /* spacing between buttons */
+    margin: 10px;
+}
+
+.search-buttons button {
+    color: white; /* Sets the text color for a button */
+    background-color: #0a18b354; /* Sets the background color for the button */
+    border-radius: 10px;
+    width: 120px;  /* or use a percentage like 100% if the container has fixed width */
+    padding: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.save-summary-button {
+    width: 88.5%;               /* Take full width of parent */
+    display: flex;
+    justify-content: flex-end; /* Push button to the right edge */
+    padding-right: 5%;         /* Optional: space from the right edge */
+    margin-top: 20px;
+}
+
+.save-summary-button button {
+    color: white;
+    background-color: #0a18b354;
+    border-radius: 10px;
+    width: 140px;
+    padding: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.search-table-btns {
+    display: flex;
+    justify-content: flex-start; /* align items from the left */
+    position: relative;
+    align-items: center;
+    left: 34%;
+    gap: 20px;
+}
+
+.export-search-btn {
+    color: white; /* Sets the text color for a button */
+    background-color: #0a18b354; /* Sets the background color for the button */
+    border-radius: 10px;
+    width: 120px;  /* or use a percentage like 100% if the container has fixed width */
+    padding: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.clear-summary-buttons {
+    display: flex;
+    justify-content: flex-start; /* align items from the left */
+    position: relative;
+    align-items: center;
+    left: 33.2%;
+    gap: 20px;
+}
+
+.clear-btn {
+    color: white;
+    background-color: #c0392b88;  /* red-ish button for 'clear' */
+    border-radius: 10px;
+    width: 140px;
+    padding: 10px;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+}
+.export-summary-btn {
+    color: white; /* Sets the text color for a button */
+    background-color: #0a18b354; /* Sets the background color for the button */
+    border-radius: 10px;
+    width: 140px;  /* or use a percentage like 100% if the container has fixed width */
+    padding: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+}

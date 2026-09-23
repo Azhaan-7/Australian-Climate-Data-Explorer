@@ -1,0 +1,68 @@
+img.logo {
+    background-color: #00000000; /* sets the background colour to clear when not hovered */
+    padding: 0% 1%; /* adds some padding from the side of the screen */
+    width: 7%; /* controls size of logo */
+    height: auto; /* maintains aspect ratio */
+    border-radius: 5px; /* looks so much better when highlighted */
+}
+
+img.logo:hover {
+    background-color: #222222ff; /* sets the background colour when hovered (before invert) */
+    filter: invert(100%); /* inverts colours on hover */
+}
+
+.navbar {
+    /* position: fixed;
+    top: 1%;
+    left: 0.5%;
+    right: 0.5%;
+    width: 100%;
+    height: 100%; FOR STATIC NAVBAR */
+    z-index: 1000; /* Puts it above other content */
+}
+
+.navbar-button {
+    float: right; /* aligns navbar class to the right */
+    height: 10%; /* navbar takes up 10% of the vertical space */
+    width: 90%; /* navbar takes up 90% of the horizontal space */
+}
+
+.navbar-button ul {
+    background-color: #00000000; /* set the navbar to transparent. we dont want it to have colour, just the buttons */
+    list-style-type: none; /* removes styling from the list (dot points) */
+    white-space: nowrap; /* gets rid of text wrapping so the buttons stay the same size */
+    display: flex;
+    justify-content: flex-end;
+    margin: 0;
+    padding: 0;
+}
+
+.navbar-button li {
+    float: none; /* aligns each element of the list to the right 
+                     makes the elements display in reverse order so i just rearanged
+                     them in the html. its weird i know but whatever */
+    width: 12%; /* button width is 10% of the navbar */
+    border-right: 1px solid white;
+    align-items: center;
+    justify-content: center;
+}
+
+.navbar-button li:last-child {
+    border-right: none;
+}
+
+.navbar-button a {
+    color: white;  /* sets text colour to white */
+    background-color: #85c0ff54;  /* sets the background colour */
+    text-decoration: none; /* removes underline from hyperlink */
+    font-size: 14px; /* 14px font size, any bigger and the boxes go out of wack. still easily readable */
+    padding: 7% 1%; /* adds some thickness to the boxes */
+    display: block; /* makes the boxes display properly */
+    text-align: center; /* align the text to the center */
+}
+
+/* Replaced the invert on hover with a colour swap */
+.navbar-button a:hover {
+    background-color: #ddddddff; /* Background on hover swaps to white */
+    color: black; /* Text color on hover swaps to black */
+}

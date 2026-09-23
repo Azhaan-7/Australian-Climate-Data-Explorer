@@ -1,0 +1,96 @@
+
+.search_filters {
+    display: flex;               /* aligns children in a row by default */
+    justify-content: center;    /* centers the items horizontally */
+    align-items: center;        /* vertically aligns items */
+    margin-top: 20px;           /* optional spacing from the top */
+}
+
+.search-btns {
+    gap: 20px;
+    margin-left: 40px;
+}
+.search-btns button {
+    color: white;
+    background-color: #0a18b354;
+    border-radius: 10px;
+    width: 140px;
+    padding: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+select {
+    color: white; /* Sets text currently selected to black */
+    background-color: #85c0ff55; /* Sets background of dropdown box to white */
+}
+
+option {
+    color: white; /* Sets the color of the text for the options in a dropdown menu */
+    background-color: #3c5875; /* Sets the color of the background for each option in a dropdown menu */
+}
+
+.drop-down {
+    margin-left: 30px; /* Adds spacing for drop-downs from other elements */
+    padding: 10px; /* Increases size of drop-down menus */
+    text-align: center; /* Aligns text centrally within the drop-down */
+    border-radius: 10px;
+    border: 1px solid #818181;       /* light grey border */
+}
+
+.date-selector {
+    margin-left: 30px; /* Adds spacing for drop-downs from other elements */
+    padding: 9px; /* Increases size of drop-down menus */
+    border-radius: 10px;
+    color: white; /* Sets text currently selected to black */
+    background-color: #85c0ff55; /* Sets background of dropdown box to white */
+    display: inline-block;
+    vertical-align: top;
+    border: 1px solid #818181;       /* light grey border */
+}
+
+.date-selector label {
+    margin: 10px;
+}
+
+input[type="date"] {
+  color: black;
+  background-color: white;
+}
+.summary-btn {
+    color: white; /* Sets the text color for a button */
+    background-color: #0a18b354; /* Sets the background color for the button */
+    padding: 15px; /* Increases size of button */
+    margin-inline: 20px; /* Adds spacing around button */
+    border-radius: 10px;
+}
+
+.search-buttons {
+    display: flex;
+    justify-content: flex-start; /* align items from the left */
+    gap: 10px; /* spacing between buttons */
+    position: relative;
+    left: 68%; /* shift container 70% from the left edge */
+}
+.search-buttons_b {
+    display: flex;
+    justify-content: flex-start; /* align items from the left */
+    gap: 10px; /* spacing between buttons */
+    position: relative;
+    left: 68%; /* shift container 70% from the left edge */
+    bottom: 25%;
+}
+
+.search-buttons button {
+    color: white; /* Sets the text color for a button */
+    background-color: #0a18b354; /* Sets the background color for the button */
+    border-radius: 10px;
+    width: 120px;  /* or use a percentage like 100% if the container has fixed width */
+    padding: 10px;
+    font-size: 1rem;
+        
+}
+
+input[type="number"] {
+    color: white;
+    background-color: #85c0ff55;
+}

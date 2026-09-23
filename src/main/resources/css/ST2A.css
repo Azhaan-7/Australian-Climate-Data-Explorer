@@ -1,0 +1,213 @@
+/* .filter_box {
+    position: relative;
+    display:flex;
+    flex-direction: column;
+    left: 430px;
+    width: 150px;               
+    justify-content: center;    
+    align-items: flex-start;      
+    margin-top: 20px;          
+}
+.filter_row {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.filter_box select {
+    width: 180px;
+    height: 38px;
+    font-size: 14px;
+    padding: 4px;
+    box-sizing: border-box;
+}   
+
+
+.search_filters {
+    display: flex;             
+    justify-content: center;   
+    align-items: center;      
+    margin-top: 20px;           
+}
+
+select {
+    color: white; 
+    background-color: #85c0ff55; 
+}
+
+option {
+    color: white; 
+    background-color: #141c3c; 
+}
+
+.drop-down {
+    margin-left: 28px;
+    padding: 10px; 
+    text-align: center; 
+    border-radius: 10px;
+    border: 1px solid #818181;      
+}
+
+
+input[type="date"] {
+  color: black;
+  background-color: white;
+}
+
+.summary-btn {
+    color: white; 
+    background-color: #0a18b354; 
+    padding: 15px; 
+    margin-inline: 20px; 
+    border-radius: 10px;
+}
+
+.button-select-state {
+  background-color: #2c2f8d;      
+  color: white;                   
+  border: 2px solid black;       
+  border-radius: 10px;          
+  padding: 10px 20px;            
+  font-size: 16px;              
+  font-family: Arial, sans-serif; 
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6); 
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.3s ease;
+  position: absolute;
+  top: 30%;
+  left: 18%;
+}
+
+.button-select-state:hover {
+  background-color: #3c3faf; 
+}
+.search-buttons {
+  margin-top: 10px; 
+}
+#regions_drop {
+    margin-left: 20px; 
+    position: relative;
+    margin-top: -89px;
+    left: 200px;
+}
+.button-select-region {
+  background-color: #2c2f8d;      
+  color: white;                  
+  border: 2px solid black;        
+  border-radius: 10px;            
+  padding: 10px 20px;             
+  font-size: 16px;                
+  font-family: Arial, sans-serif; 
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.3s ease;
+  position: absolute;
+
+  left: 150px; 
+  white-space: nowrap;
+}
+
+.button-select-region:hover {
+  background-color: #3c3faf; 
+}
+#metrics_drop {
+    margin-left: 20px;
+    position: relative;
+    margin-top: -127px;
+    left: 400px;
+}
+.button-select-metric {
+  background-color: #2c2f8d;      
+  color: white;                  
+  border: 2px solid black;        
+  border-radius: 10px;            
+  padding: 10px 20px;             
+  font-size: 16px;                
+  font-family: Arial, sans-serif; 
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.3s ease;
+  position: absolute;
+
+  left: 370px; 
+  white-space: nowrap;
+}
+
+.button-select-metric:hover {
+  background-color: #3c3faf; 
+} */
+.filter_row {
+    display: flex;
+    justify-content: center;
+    gap: 60px;     /* space between the dropdown-button pairs */
+    flex-wrap: wrap;
+    margin-top: 40px;
+}
+.filter_box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 180px; /* same as dropdown width */
+    gap: 10px;    /* space between dropdown and button */
+}
+
+.drop-down {
+    width: 180px;
+    height: 38px;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid #818181;
+    background-color: rgba(133, 192, 255, 0.33);
+    color: white;
+    text-align: center;
+}
+
+.button-select-state,
+.button-select-region,
+.button-select-metric {
+    background-color: #2c2f8d;
+    color: white;
+    border: 2px solid black;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-family: Arial, sans-serif;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s ease;
+    white-space: nowrap;
+    width: 150px;
+}
+
+.button-select-state:hover,
+.button-select-region:hover,
+.button-select-metric:hover {
+    background-color: #3c3faf;
+}
+
+/* Styling options */
+select {
+    color: white;
+    background-color: #85c0ff55;
+}
+
+option {
+    color: white;
+    background-color: #141c3c;
+}
+.filter_row_single {
+    
+    display: flex;
+    justify-content: left;
+    margin-left: 10%;
+    margin-bottom: 20px;
+}

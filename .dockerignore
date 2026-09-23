@@ -1,0 +1,9 @@
+target/
+.git/
+.gitignore
+
+database/climate.db
+
+.vscode/
+.idea/
+.DS_Store
