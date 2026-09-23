@@ -1,0 +1,107 @@
+.mission-grid {
+    color: #ddddddff;  /* sets text colour to white */
+    display: grid; /* grid layout */
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 5%; /* gap between each grid cell */
+    width: 98%; /* takes up 90% of the screen */
+    margin-left: 1%; /* hardcoded margin to center the grid */
+}
+
+.mission-grid-element {
+    background-color: #85c0ff54;  /* sets the background colour */
+    width: 100%; /* we want them to take up 100% of the grid cell */
+    margin-bottom: 5%;
+    margin-top: 5%;
+    border-radius: 5px;
+    padding-right: 20%;
+}
+
+.mission-grid-element ul {
+    background-color: #00000000; /* set the navbar to transparent. we dont want it to have colour, just the buttons */
+    list-style-type: none; /* removes styling from the list (dot points) */
+}
+
+.mission-grid-element li {
+    margin: 1% 0%; /* adds a lil bit of spacing between each element */
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.mission-grid-element ul ul {
+    list-style-type: disc; /* adds dot points for needs, goals, etc */
+}
+
+.mission-grid-element a {
+    color: #ccccccff;  /* sets text colour to slightly darker than attribute name */
+    font-size: 20px;
+    font-weight: normal;
+}
+
+img.persona-face {
+    width: 30%; /* controls size of logo */
+    height: auto; /* maintains aspect ratio */
+    margin-bottom: 5%;
+    border-radius: 5px;
+    margin: 10% 10%; /* add some thickness to the boxes */
+}
+
+.tutorial {
+    position: relative;
+    display: flex;
+}
+
+.tutorial .tutorial-text {
+    visibility: hidden;
+    width: 20%;
+    height: 100%;
+    background-color: #393433ff;
+    color: #ddddddff;
+    text-align: center;
+    border-radius: 5px;
+    border: 1px solid #818181;       /* light grey border */
+    font-size: 14px;
+    margin-left: 250px;
+    margin-top: 5px;
+    padding-top: 10px;
+
+    position: absolute;
+    z-index: 1;
+}
+
+.tutorial:hover .tutorial-text {
+    visibility: visible;
+}
+
+.tutorial-search-filters {
+    display: flex;               /* aligns children in a row by default */
+    flex-direction: column;
+    margin-top: 20px;           /* optional spacing from the top */
+}
+
+.tutorial-drop-down {
+    margin-left: 30px; /* Adds spacing for drop-downs from other elements */
+    margin-top: 10px;
+    padding: 5px; /* Increases size of drop-down menus */
+    text-align: center; /* Aligns text centrally within the drop-down */
+    border-radius: 10px;
+    border: 1px solid #818181;       /* light grey border */
+    width: 20%;
+    height: 30px;
+}
+
+.tutorial-date-selector {
+    margin-left: 30px; /* Adds spacing for drop-downs from other elements */
+    margin-top: 10px;
+    padding: 0px; /* Increases size of drop-down menus */
+    text-align: center; /* Aligns text centrally within the drop-down */
+    border-radius: 10px;
+    color: white; /* Sets text currently selected to black */
+    background-color: #85c0ff55; /* Sets background of dropdown box to white */
+    border: 1px solid #818181;       /* light grey border */
+    width: 20%;
+    height: 30px;
+}
+
+.tutorial-date-selector label {
+    font-size: 14px;
+}

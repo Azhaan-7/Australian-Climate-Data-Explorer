@@ -1,0 +1,42 @@
+.summary-element {
+    margin-bottom: 50px; /* Adds spacing for elements on summary page */
+    padding: 20px; /* Adds padding within elements on summary page */
+}
+
+.output{
+    background-color: #85c0ff55;
+    padding: 15px 15px;
+    border-radius: 10px;
+    width: fit-content;
+    color: white;
+}
+
+.page-description {
+    width: 60%; /* Adjusts the width of the summary page description */
+    margin: 0 auto; /* Automatically aligns the summary page description to be central on the page, works in conjunction with width: */
+    margin-top: 10px; /* Adds top spacing */
+    margin-bottom: 20px; /* Adds bottom spacing */
+    text-align: justify; /* Aligns the text */
+    font-size: larger; /* Increase font size */
+    background-color: #85c0ff55;
+    padding: 15px 15px;
+    border-radius: 10px;
+    color: white;
+}
+
+.summary-lists {
+    margin-left: 40px; /* Adds spacing from the left of the page for list elements on the summary page */
+}
+
+.sublists {
+    margin-left: 30px; /* Adds additional spacing for sublist elements */
+    list-style-type: square; /* Changes list style to square for sublists */
+}
+
+.form-group label{
+    background-color: #85c0ff55;
+    color: white;
+    width: fit-content;
+    border-radius: 10px;
+    padding: 10px 10px;
+}
