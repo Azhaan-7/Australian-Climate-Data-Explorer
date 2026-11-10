@@ -30,7 +30,7 @@ public class PageST3C implements Handler {
     @Override
     public void handle(Context context) throws Exception {
         // Create a simple HTML webpage in a String
-        String html = "<html>";
+        String html = "<html lang='en'>";
         JDBCConnection jdbc = new JDBCConnection();
 
         // Add some Head information
@@ -43,31 +43,14 @@ public class PageST3C implements Handler {
         html = html + "<link rel='stylesheet' type='text/css' href='search_filters.css'/>";
         html = html + "<link rel='stylesheet' type='text/css' href='navbar.css'/>";
         html = html + "<link rel='stylesheet' type='text/css' href='common.css'/>";
-        html = html + "</head>";
+        html = html + "<meta name='viewport' content='width=device-width, initial-scale=1'><link rel='stylesheet' href='/interface.css'><script src='/interface.js' defer></script></head>";
 
         // Add the body
         html = html + "<body>";
 
         // Add the topnav
         // This uses a Java v15+ Text Block
-        html = html + """
-            <div class='navbar'> <!-- NAVBAR DIV -->
-                    <a href='/'><img class='logo' src='home.png'/></a>
-                    <nav class='navbar-button'>
-                        <ul>
-                            <li><a href='/'>Homepage</a></li>    
-                            <li><a href='mission.html'>Our Mission</a></li>
-                            <li><a href='datasummary.html'>Understanding Our Data</a></li>
-                            <li><a href='page2A.html'>View by Weather Station</a></li>
-                            <li><a href='page2B.html'>View by Metric</a></li>
-                            <li><a href='page2C.html'>View by Data Quality</a></li>
-                            <li><a href='page3A.html'>View Station Similarities</a></li>
-                            <li><a href='page3B.html'>View Metric Similarities</a></li>
-                            <li><a href='page3C.html'>View Cross Metric Impact</a></li>
-                        </ul>
-                    </nav>
-                </div>  <!-- END NAVBAR DIV -->
-        """;
+        html += Navigation.render(URL);
 
         // Add header content block
         html = html + """
@@ -146,9 +129,9 @@ public class PageST3C implements Handler {
         // Time Period selector
         html += "<div class='date-selector'>" +
                     "<label for='start_date'>Start Date:</label>" +
-                    "<input type='date' id='start_date' name='start_date' min='1970-01-01' max='2020-12-31' value='" + start_date + "'>" +
+                    "<input type='date' id='start_date' name='start_date' min='1970-01-01' max='2020-12-31' value='" + (start_date != null ? start_date : "") + "'>" +
                     "<label for='end_date'>End Date:</label>" +
-                    "<input type='date' id='end_date' name='end_date' min ='1970-01-01' max='2020-12-31' value='" + end_date + "'>" +
+                    "<input type='date' id='end_date' name='end_date' min ='1970-01-01' max='2020-12-31' value='" + (end_date != null ? end_date : "") + "'>" +
                 "</div>";
 
         // End form
@@ -229,8 +212,8 @@ public class PageST3C implements Handler {
                         "<form action='/export-search-3C' method='get'>" +
                             "<input type='hidden' name='station' value='" + station_drop + "'>" +
                             "<input type='hidden' name='metric' value='" + metric_drop + "'>" +
-                            "<input type='hidden' name='start-date' value='" + start_date + "'>" +
-                            "<input type='hidden' name='end-date' value='" + end_date + "'>" +
+                            "<input type='hidden' name='start-date' value='" + (start_date != null ? start_date : "") + "'>" +
+                            "<input type='hidden' name='end-date' value='" + (end_date != null ? end_date : "") + "'>" +
                             "<button type='submit' class='export-search-btn'>Export Table</button>" +
                         "</form>" +
                     "</div>";
@@ -240,7 +223,7 @@ public class PageST3C implements Handler {
         html = html + "</div>";
 
         // Finish the HTML webpage
-        html = html + "</body>" + "</html>";
+        html = html + "</main></body>" + "</html>";
         
 
         // DO NOT MODIFY THIS

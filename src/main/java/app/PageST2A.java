@@ -18,7 +18,7 @@ public class PageST2A implements Handler {
         String html = "";
 
         html += "<!DOCTYPE html>";
-        html += "<html>";
+        html += "<html lang='en'>";
 
         html += "<head>";
         html = html + "<title>Focused View by Climate Station</title>";
@@ -28,32 +28,15 @@ public class PageST2A implements Handler {
         html += "    <link rel='stylesheet' type='text/css' href='buttons.css' />";
         html += "    <link rel='stylesheet' type='text/css' href='search_filters.css' />";
         html += "    <link rel='stylesheet' type='text/css' href='ST2A.css' />";
-        html += "</head>";
+        html += "<meta name='viewport' content='width=device-width, initial-scale=1'><link rel='stylesheet' href='/interface.css'><script src='/interface.js' defer></script></head>";
 
         html += "<body>";
         // Add the topnav
         // This uses a Java v15+ Text Block
-        html = html + """
-             <div class='navbar'> <!-- NAVBAR DIV -->
-                    <a href='/'><img class='logo' src='home.png'/></a>
-                    <nav class='navbar-button'>
-                        <ul>
-                            <li><a href='/'>Homepage</a></li>    
-                            <li><a href='mission.html'>Our Mission</a></li>
-                            <li><a href='datasummary.html'>Understanding Our Data</a></li>
-                            <li><a href='page2A.html'>View by Weather Station</a></li>
-                            <li><a href='page2B.html'>View by Metric</a></li>
-                            <li><a href='page2C.html'>View by Data Quality</a></li>
-                            <li><a href='page3A.html'>View Station Similarities</a></li>
-                            <li><a href='page3B.html'>View Metric Similarities</a></li>
-                            <li><a href='page3C.html'>View Cross Metric Impact</a></li>
-                        </ul>
-                    </nav>
-                </div>  <!-- END NAVBAR DIV -->
-        """;
+        html += Navigation.render(URL);
         html = html + """
             <div class='center_heading_B'>
-                <b>View by Weather Station</b>
+                <h1>View by Weather Station</h1>
             </div>
         """;
          html = html + """
@@ -299,7 +282,7 @@ if (!regionRows.isEmpty()) {
 
 
         
-        html += "</body>";
+        html += "</main></body>";
         html += "</html>";
 
         context.html(html);

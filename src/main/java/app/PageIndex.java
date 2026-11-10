@@ -34,7 +34,7 @@ public class PageIndex implements Handler {
         ArrayList<String> nameAndTemp = jdbc.getNameAndMinTemp();
          ArrayList<String> nameAndRain = jdbc.getNameAndMaxRain();
         
-        String html = "<html>";
+        String html = "<html lang='en'>";
 
         // Add some Header information
         html = html + "<head>" + 
@@ -47,7 +47,7 @@ public class PageIndex implements Handler {
         html += "    <link rel='stylesheet' type='text/css' href='buttons.css' />";
         html += "    <link rel='stylesheet' type='text/css' href='search_filters.css' />";
         html += "    <link rel='stylesheet' type='text/css' href='ST2A.css' />";
-        html = html + "</head>";
+        html = html + "<meta name='viewport' content='width=device-width, initial-scale=1'><link rel='stylesheet' href='/interface.css'><script src='/interface.js' defer></script></head>";
 
         // Add the body
         html = html + "<body>";
@@ -58,30 +58,13 @@ public class PageIndex implements Handler {
         // Add the topnav
         // This uses a Java v15+ Text Block
         
-        html = html + """
-             <div class='navbar'> <!-- NAVBAR DIV -->
-                    <a href='/'><img class='logo' src='home.png'/></a>
-                    <nav class='navbar-button'>
-                        <ul>
-                            <li><a href='/'>Homepage</a></li>    
-                            <li><a href='mission.html'>Our Mission</a></li>
-                            <li><a href='datasummary.html'>Understanding Our Data</a></li>
-                            <li><a href='page2A.html'>View by Weather Station</a></li>
-                            <li><a href='page2B.html'>View by Metric</a></li>
-                            <li><a href='page2C.html'>View by Data Quality</a></li>
-                            <li><a href='page3A.html'>View Station Similarities</a></li>
-                            <li><a href='page3B.html'>View Metric Similarities</a></li>
-                            <li><a href='page3C.html'>View Cross Metric Impact</a></li>
-                        </ul>
-                    </nav>
-                </div>  <!-- END NAVBAR DIV -->
-        """;
+        html += Navigation.render(URL);
         
         
 //add the title of the page
         html = html + """
             <div class = 'center_heading'>
-            <b>Decades of Data, One Clear Forecast</b>
+            <h1>Decades of Data, One Clear Forecast</h1>
             </div>
             """;
 
@@ -215,7 +198,7 @@ html+="""
 """;
 
 
-        html = html + "</body>" + "</html>";
+        html = html + "</main></body>" + "</html>";
 
 
         // DO NOT MODIFY THIS

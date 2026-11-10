@@ -25,37 +25,19 @@ public class PageST2B implements Handler {
 
         // Create a simple HTML webpage in a String
         String html = """
-            <html>
+            <html lang='en'>
                 <head>
                     <title>View by Climate Metric</title>
                     <link rel='stylesheet' type='text/css' href='common.css'/>
                     <link rel='stylesheet' type='text/css' href='navbar.css'/>
                     <link rel='stylesheet' type='text/css' href='data_summary.css'/>
                     <link rel='stylesheet' type='text/css' href='buttons.css'/>
-                    <link rel='stylesheet' type='text/css' href='drop_down.css'/>
                     <link rel='stylesheet' type='text/css' href='search_filters.css'/>
-                </head>
+                <meta name='viewport' content='width=device-width, initial-scale=1'><link rel='stylesheet' href='/interface.css'><script src='/interface.js' defer></script></head>
                 <body>
             """;
     
-            html += """
-                <div class='navbar'> <!-- NAVBAR DIV -->
-                    <a href='/'><img class='logo' src='home.png'/></a>
-                    <nav class='navbar-button'>
-                        <ul>
-                            <li><a href='/'>Homepage</a></li>    
-                            <li><a href='mission.html'>Our Mission</a></li>
-                            <li><a href='datasummary.html'>Understanding Our Data</a></li>
-                            <li><a href='page2A.html'>View by Weather Station</a></li>
-                            <li><a href='page2B.html'>View by Metric</a></li>
-                            <li><a href='page2C.html'>View by Data Quality</a></li>
-                            <li><a href='page3A.html'>View Station Similarities</a></li>
-                            <li><a href='page3B.html'>View Metric Similarities</a></li>
-                            <li><a href='page3C.html'>View Cross Metric Impact</a></li>
-                        </ul>
-                    </nav>
-                </div>  <!-- END NAVBAR DIV -->
-            """;
+        html += Navigation.render(URL);
 
         // Add header content block
         html = html + """
@@ -112,15 +94,15 @@ public class PageST2B implements Handler {
         html = html + "</select>";
 
         html += "<input type='number' placeholder='Min Station ID...' id='station_id_min' name='station_id_min' class='drop-down' value='" + 
-               stationIdMin + "'><input type='number' placeholder='Max Station ID...' id='station_id_max' name='station_id_max' class='drop-down' value='" + 
-               stationIdMax + "'>";
+               (stationIdMin != null ? stationIdMin : "") + "'><input type='number' placeholder='Max Station ID...' id='station_id_max' name='station_id_max' class='drop-down' value='" +
+               (stationIdMax != null ? stationIdMax : "") + "'>";
 
         // Calendar feature
         html = html + "<div class='date-selector'>" +
                         "<label for='start-date'>Start Date:</label>" +
-                        "<input type='date' id='start-date' name='start-date' min='1970-01-01' max='2020-12-31' value='" + startDate + "'>" +
+                        "<input type='date' id='start-date' name='start-date' min='1970-01-01' max='2020-12-31' value='" + (startDate != null ? startDate : "") + "'>" +
                         "<label for='end-date'>End Date:</label>" +
-                        "<input type='date' id='end-date' name='end-date' min='1970-01-01' max='2020-12-31' value='" + endDate + "'>" +
+                        "<input type='date' id='end-date' name='end-date' min='1970-01-01' max='2020-12-31' value='" + (endDate != null ? endDate : "") + "'>" +
                     "</div>";
 
         // Close search filters div
@@ -178,18 +160,18 @@ public class PageST2B implements Handler {
             html += "<div class='search-table-btns'>";
             html += "<form action='/save-metric-summary' method='post'>";
             html += "<input type='hidden' name='metrics_drop' value='" + metricDrop + "'>";
-            html += "<input type='hidden' name='station_id_min' value='" + stationIdMin + "'>";
-            html += "<input type='hidden' name='station_id_max' value='" + stationIdMax + "'>";
-            html += "<input type='hidden' name='start-date' value='" + startDate + "'>";
-            html += "<input type='hidden' name='end-date' value='" + endDate + "'>";
+            html += "<input type='hidden' name='station_id_min' value='" + (stationIdMin != null ? stationIdMin : "") + "'>";
+            html += "<input type='hidden' name='station_id_max' value='" + (stationIdMax != null ? stationIdMax : "") + "'>";
+            html += "<input type='hidden' name='start-date' value='" + (startDate != null ? startDate : "") + "'>";
+            html += "<input type='hidden' name='end-date' value='" + (endDate != null ? endDate : "") + "'>";
             html += "<div><button type='submit' class='export-search-btn'>Save to Summary</button></div>";
             html += "</form>";
             html += "<form action='/export-search-2b' method='get'>" +
                         "<input type='hidden' name='metric' value='" + metricDrop + "'>" + 
-                        "<input type='hidden' name='start-date' value='" + startDate + "'>" + 
-                        "<input type='hidden' name='station_id_min' value='" + stationIdMin + "'>" +
-                        "<input type='hidden' name='station_id_max' value='" + stationIdMax + "'>" +
-                        "<input type='hidden' name='end-date' value='" + endDate + "'>" + 
+                        "<input type='hidden' name='start-date' value='" + (startDate != null ? startDate : "") + "'>" +
+                        "<input type='hidden' name='station_id_min' value='" + (stationIdMin != null ? stationIdMin : "") + "'>" +
+                        "<input type='hidden' name='station_id_max' value='" + (stationIdMax != null ? stationIdMax : "") + "'>" +
+                        "<input type='hidden' name='end-date' value='" + (endDate != null ? endDate : "") + "'>" +
                         "<button type='submit' class='export-search-btn'>Export Search Table</button>" + 
                     "</form>" +
                     "</div>";
@@ -235,7 +217,7 @@ public class PageST2B implements Handler {
         html = html + "</div>";
 
         // Finish the HTML webpage
-        html = html + "</body>" + "</html>";
+        html = html + "</main></body>" + "</html>";
         
 
         // DO NOT MODIFY THIS

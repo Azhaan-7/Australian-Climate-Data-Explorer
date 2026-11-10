@@ -29,7 +29,7 @@ public class PageST3A implements Handler {
     public void handle(Context context) throws Exception {
         // Create a simple HTML webpage in a String
         JDBCConnection jdbc = new JDBCConnection();
-        String html = "<html>";
+        String html = "<html lang='en'>";
 
         // Add some Head information
        html += "<head>";
@@ -40,36 +40,19 @@ public class PageST3A implements Handler {
         html += "    <link rel='stylesheet' type='text/css' href='buttons.css' />";
         html += "    <link rel='stylesheet' type='text/css' href='search_filters.css' />";
         html += "    <link rel='stylesheet' type='text/css' href='ST2A.css' />";
-        html += "</head>";
+        html += "<meta name='viewport' content='width=device-width, initial-scale=1'><link rel='stylesheet' href='/interface.css'><script src='/interface.js' defer></script></head>";
 
         // Add the body
         html = html + "<body>";
 
         // Add the topnav
         // This uses a Java v15+ Text Block
-        html = html + """
-             <div class='navbar'> <!-- NAVBAR DIV -->
-                    <a href='/'><img class='logo' src='home.png'/></a>
-                    <nav class='navbar-button'>
-                        <ul>
-                            <li><a href='/'>Homepage</a></li>    
-                            <li><a href='mission.html'>Our Mission</a></li>
-                            <li><a href='datasummary.html'>Understanding Our Data</a></li>
-                            <li><a href='page2A.html'>View by Weather Station</a></li>
-                            <li><a href='page2B.html'>View by Metric</a></li>
-                            <li><a href='page2C.html'>View by Data Quality</a></li>
-                            <li><a href='page3A.html'>View Station Similarities</a></li>
-                            <li><a href='page3B.html'>View Metric Similarities</a></li>
-                            <li><a href='page3C.html'>View Cross Metric Impact</a></li>
-                        </ul>
-                    </nav>
-                </div>  <!-- END NAVBAR DIV -->
-        """;
+        html += Navigation.render(URL);
 
         // Add header content block
        html = html + """
             <div class='center_heading_B'>
-                <b>View Station Similarities</b>
+                <h1>View Station Similarities</h1>
             </div>
         """;
 
@@ -105,7 +88,7 @@ public class PageST3A implements Handler {
         // Stat Dropdown
         html = html + """     
           <div class='filter_box'>
-              <select id='station_drop' name='station_drop' class='drop-down' style= "width: 280px">
+              <select id='station_drop' name='station_drop' class='drop-down'>
                    <option>--Reference Weather Station--</option>
                    """;
         for (String code : stations) {
@@ -131,16 +114,16 @@ public class PageST3A implements Handler {
 
         // Date selector (thanks to Kieran)
         html = html + "<div class='date-selector'>" +
-                        "<label for='start-date'>Start Date:</label>" +
-                        "<input type='date' id='start-date' name='start-date' min='1970-01-01' max='2020-12-31' value='" + start_date + "'>" +
-                        "<label for='end-date'>End Date:</label>" +
-                        "<input type='date' id='end-date' name='end-date' min='1970-01-01' max='2020-12-31' value='" + end_date + "'>" +
+                        "<label for='start-date'>Period 1 start:</label>" +
+                        "<input type='date' id='start-date' name='start-date' min='1970-01-01' max='2020-12-31' value='" + (start_date != null ? start_date : "") + "'>" +
+                        "<label for='end-date'>Period 1 end:</label>" +
+                        "<input type='date' id='end-date' name='end-date' min='1970-01-01' max='2020-12-31' value='" + (end_date != null ? end_date : "") + "'>" +
                     "</div>";
         html = html + "<div class='date-selector'>" +
-                        "<label for='start-date'>Start Date:</label>" +
-                        "<input type='date' id='start-date-1' name='start-date-1' min='1970-01-01' max='2020-12-31' value='" + start_date_1 + "'>" +
-                        "<label for='end-date'>End Date:</label>" +
-                        "<input type='date' id='end-date-1' name='end-date-1' min='1970-01-01' max='2020-12-31' value='" + end_date_1 + "'>" +
+                        "<label for='start-date-1'>Period 2 start:</label>" +
+                        "<input type='date' id='start-date-1' name='start-date-1' min='1970-01-01' max='2020-12-31' value='" + (start_date_1 != null ? start_date_1 : "") + "'>" +
+                        "<label for='end-date-1'>Period 2 end:</label>" +
+                        "<input type='date' id='end-date-1' name='end-date-1' min='1970-01-01' max='2020-12-31' value='" + (end_date_1 != null ? end_date_1 : "") + "'>" +
                     "</div>";            
 
         
@@ -164,7 +147,7 @@ public class PageST3A implements Handler {
               </select>
                 </div>
 
-                <div class='search-btns' style='margin-left: 70%;'>
+                <div class='search-btns'>
                     <button type='reset'>Reset Filters</button>
                     <button type='submit'>Search</button>
                 </div>
@@ -228,12 +211,12 @@ for (SearchResult s : stationResults) {
     html += "<form action='/export-st3a' method='get'>";
     html += "<input type='hidden' name='station_id' value='" + stationID + "'>";
     html += "<input type='hidden' name='metric' value='" + metrics_drop + "'>";
-    html += "<input type='hidden' name='start_date' value='" + start_date + "'>";
-    html += "<input type='hidden' name='end_date' value='" + end_date + "'>";
-    html += "<input type='hidden' name='start_date_1' value='" + start_date_1 + "'>";
-    html += "<input type='hidden' name='end_date_1' value='" + end_date_1 + "'>";
+    html += "<input type='hidden' name='start_date' value='" + (start_date != null ? start_date : "") + "'>";
+    html += "<input type='hidden' name='end_date' value='" + (end_date != null ? end_date : "") + "'>";
+    html += "<input type='hidden' name='start_date_1' value='" + (start_date_1 != null ? start_date_1 : "") + "'>";
+    html += "<input type='hidden' name='end_date_1' value='" + (end_date_1 != null ? end_date_1 : "") + "'>";
     html += "<input type='hidden' name='num_stations' value='" + numberOfStations + "'>";
-    html += "<div class='search-btns' style='margin-left: 400%; margin-top: 10%'><button type='submit' class='export-search-btn'>Export Table</button></div>";
+    html += "<div class='search-btns'><button type='submit' class='export-search-btn'>Export Table</button></div>";
 
     html += "</form>";
 
@@ -244,7 +227,7 @@ for (SearchResult s : stationResults) {
 
 
         // Finish the HTML webpage
-        html = html + "</body>" + "</html>";
+        html = html + "</main></body>" + "</html>";
         
 
         // DO NOT MODIFY THIS
