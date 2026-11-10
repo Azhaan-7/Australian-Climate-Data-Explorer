@@ -18,7 +18,8 @@ public class App {
     public static final String CSS_DIR = "css/";
     public static final String IMAGES_DIR = "images/";
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws java.sql.SQLException {
+        JDBCConnection.initializeIndexes();
         int port = Integer.parseInt(
                 System.getenv().getOrDefault("PORT", String.valueOf(DEFAULT_PORT)));
         // Create the HTTP server using the deployment port or the local default.

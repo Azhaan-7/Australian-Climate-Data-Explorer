@@ -28,8 +28,48 @@ public class JDBCConnection {
 
     // Name of database file (contained in database folder)
     // this fixes the local path so you dont need to move the database
-    public static final String DATABASE = "jdbc:sqlite:database/climate.db";
+    public static final String DATABASE = System.getProperty(
+            "climate.database", "jdbc:sqlite:database/climate.db");
+    private static final String[] CLIMATE_TABLES = {
+        "AAT", "AET", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"
+    };
+
+    /** Run once at startup; existing databases keep their records unchanged. */
+    public static void initializeIndexes() throws SQLException {
+        try (Connection connection = DriverManager.getConnection(DATABASE);
+             Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            for (String table : CLIMATE_TABLES) {
+                statement.executeUpdate("CREATE INDEX IF NOT EXISTS idx_" + table
+                        + "_location_dmy ON " + table + "(Location, DMY)");
+                statement.executeUpdate("CREATE INDEX IF NOT EXISTS idx_" + table
+                        + "_min_temp ON " + table + "(CAST(MinTemp AS REAL))");
+                statement.executeUpdate("CREATE INDEX IF NOT EXISTS idx_" + table
+                        + "_precipitation ON " + table + "(CAST(Precipitation AS REAL))");
+            }
+            statement.executeUpdate("CREATE INDEX IF NOT EXISTS idx_location_site ON Location(site)");
+            connection.commit();
+        }
+    }
+
     
+
+    private static String extremeQuery(String metric, String direction, String alias) {
+        // Preserve original table order and first-row tie handling, including NULLs.
+        String[] tables = {"AAT", "AET", "NSW", "VIC", "QLD", "SA", "TAS", "WA", "NT"};
+        StringBuilder candidates = new StringBuilder();
+        for (String table : tables) {
+            if (candidates.length() > 0) candidates.append(" UNION ALL ");
+            candidates.append("SELECT * FROM (SELECT ").append(metric)
+                    .append(", Location, DMY FROM ").append(table)
+                    .append(" ORDER BY CAST(").append(metric).append(" AS REAL) ")
+                    .append(direction).append(", rowid ASC LIMIT 1)");
+        }
+        return "SELECT CAST(t." + metric + " AS REAL) AS " + alias
+                + ", l.name AS StationName, t.DMY AS Date FROM (SELECT * FROM ("
+                + candidates + ") ORDER BY CAST(" + metric + " AS REAL) " + direction
+                + " LIMIT 1) t JOIN Location l ON l.site = t.Location";
+    }
 
     /**
      * This creates a JDBC Object so we can keep talking to the database
@@ -311,32 +351,7 @@ public class JDBCConnection {
         Statement statement = connection.createStatement();
         statement.setQueryTimeout(30);
 
-       String query = 
-        "SELECT " +
-        "    CAST(t.MinTemp AS REAL) AS MinimumTemperature, " +
-        "    l.name AS StationName, " +
-        "    t.DMY AS Date " +
-        "FROM ( " +
-        "    SELECT MinTemp, Location, DMY " +
-        "    FROM ( " +
-        "        SELECT MinTemp, Location, DMY FROM AAT " +
-        "        UNION ALL SELECT MinTemp, Location, DMY FROM AET " +
-        "        UNION ALL SELECT MinTemp, Location, DMY FROM NSW " +
-        "        UNION ALL SELECT MinTemp, Location, DMY FROM VIC " +
-        "        UNION ALL SELECT MinTemp, Location, DMY FROM QLD " +
-        "        UNION ALL SELECT MinTemp, Location, DMY FROM SA " +
-        "        UNION ALL SELECT MinTemp, Location, DMY FROM TAS " +
-        "        UNION ALL SELECT MinTemp, Location, DMY FROM WA " +
-        "        UNION ALL SELECT MinTemp, Location, DMY FROM NT " +
-        "    ) " +
-        "    ORDER BY CAST(MinTemp AS REAL) ASC " +
-        "    LIMIT 1 " +
-        ") t " +
-        "JOIN location l ON l.site = t.Location;";
-
-
-
-
+        String query = extremeQuery("MinTemp", "ASC", "MinimumTemperature");
 
         ResultSet results = statement.executeQuery(query);
 
@@ -390,32 +405,7 @@ public ArrayList<String> getNameAndMaxRain() {
         Statement statement = connection.createStatement();
         statement.setQueryTimeout(30);
 
-        String query = String.format(
-    "SELECT " +
-    "    CAST(r.Precipitation AS REAL) AS MaximumRainfall, " +
-    "    l.name AS StationName, " +
-    "    r.DMY AS Date " +
-    "FROM ( " +
-    "    SELECT Precipitation, Location, DMY " +
-    "    FROM ( " +
-    "        SELECT Precipitation, Location, DMY FROM AAT " +
-    "        UNION ALL SELECT Precipitation, Location, DMY FROM AET " +
-    "        UNION ALL SELECT Precipitation, Location, DMY FROM NSW " +
-    "        UNION ALL SELECT Precipitation, Location, DMY FROM VIC " +
-    "        UNION ALL SELECT Precipitation, Location, DMY FROM QLD " +
-    "        UNION ALL SELECT Precipitation, Location, DMY FROM SA " +
-    "        UNION ALL SELECT Precipitation, Location, DMY FROM TAS " +
-    "        UNION ALL SELECT Precipitation, Location, DMY FROM WA " +
-    "        UNION ALL SELECT Precipitation, Location, DMY FROM NT " +
-    "    ) " +
-    "    ORDER BY CAST(Precipitation AS REAL) DESC " +
-    "    LIMIT 1 " +
-    ") r " +
-    "JOIN location l ON l.site = r.Location;"
-);
-
-
-
+        String query = extremeQuery("Precipitation", "DESC", "MaximumRainfall");
 
         ResultSet results = statement.executeQuery(query);
 
@@ -478,7 +468,8 @@ public ArrayList<String> getNameAndMaxRain() {
             // The SQL Query to be executed 
             String query = """
                     SELECT Field FROM Metadata 
-                    WHERE Field NOT LIKE '%Qual%'
+                    WHERE TRIM(Field) <> ''
+                    AND Field NOT LIKE '%Qual%'
                     AND Field NOT LIKE '%Days%'
                     AND Field NOT LIKE 'Location'
                     AND Field NOT LIKE 'DMY'
@@ -1448,304 +1439,83 @@ public void clearMetricSummaryTable() {
 
 // PageST3C Search method
 public ArrayList<SearchResult> getSearch3CResults(String station, String metric, String startDate, String endDate) {
-    // Create ArrayList
-    ArrayList<SearchResult> SearchResults = new ArrayList<SearchResult>();
-    // Get list of metrics
+    ArrayList<SearchResult> results = new ArrayList<>();
     ArrayList<String> metrics = getMetrics();
     metrics.remove(metric);
+    // Keep the original selection and tie order: reference metric, then 20 alternatives.
+    metrics = new ArrayList<>(metrics.subList(0, 20));
+    metrics.add(0, metric);
 
-    // Setup the variable for the JDBC connection
-    Connection connection = null;
-
-    try {
-        // Connect to JDBC database
-        connection = DriverManager.getConnection(DATABASE);
-
-        // Prepare a new SQL Query & Set a timeout
-        Statement statement = connection.createStatement();
-        // put in a timeout incase the db is not running
-        statement.setQueryTimeout(30);
-
-        // The first SQL Query to be executed
-        statement.executeUpdate("DROP VIEW IF EXISTS SelectedStation;");
-        statement.executeUpdate("CREATE VIEW SelectedStation AS SELECT site, state FROM Location WHERE name = '" + station + "';");
-        ResultSet results1 = statement.executeQuery("SELECT * FROM SelectedStation;");
-
-        // Process results from first query
-        String stationId = null;
-        String stationState = null;
-
-        if (results1.next()) {
-            stationId = results1.getString("site");
-            stationState = results1.getString("state");
-
-            if (stationState.contains(".")) {
-                stationState = stationState.replace(".", "");
+    try (Connection connection = DriverManager.getConnection(DATABASE)) {
+        String stationId;
+        String stationState;
+        try (PreparedStatement lookup = connection.prepareStatement(
+                "SELECT site, state FROM Location WHERE name = ?")) {
+            lookup.setString(1, station);
+            try (ResultSet stationRow = lookup.executeQuery()) {
+                if (!stationRow.next()) {
+                    throw new SQLException("Station not found in Location table.");
+                }
+                stationId = stationRow.getString("site");
+                stationState = stationRow.getString("state").replace(".", "");
             }
-        } else {
-            // Handle case when station is not found
-            throw new SQLException("Station not found in Location table.");
         }
-
-        // Second Query
-        String query2 = "WITH" +
-                        " DateRange AS (" +
-                        "SELECT" +
-                            " date((julianday('" + endDate + "') + julianday('" + startDate + "')) / 2) AS midDate" +
-                        ")," +
-                        " UserMetric AS (" +
-                        "SELECT '" + metric + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metric + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metric + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metric + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metric + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metric + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metric + " IS NOT NULL" +
-                        ")," +
-                        " AllMetrics AS (" +
-                        "SELECT '" + metrics.get(0) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(0) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(0) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(0) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(0) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(0) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(0) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(1) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(1) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(1) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(1) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(1) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(1) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(1) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(2) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(2) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(2) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(2) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(2) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(2) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(2) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(3) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(3) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(3) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(3) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(3) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(3) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(3) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(4) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(4) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(4) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(4) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(4) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(4) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(4) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(5) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(5) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(5) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(5) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(5) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(5) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(5) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(6) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(6) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(6) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(6) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(6) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(6) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(6) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(7) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(7) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(7) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(7) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(7) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(7) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(7) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(8) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(8) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(8) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(8) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(8) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(8) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(8) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(9) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(9) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(9) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(9) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(9) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(9) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(9) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(10) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(10) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(10) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(10) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(10) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(10) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(10) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(11) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(11) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(11) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(11) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(11) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(11) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(11) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(12) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(12) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(12) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(12) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(12) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(12) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(12) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(13) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(13) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(13) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(13) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(13) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(13) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(13) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(14) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(14) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(14) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(14) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(14) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(14) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(14) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(15) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(15) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(15) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(15) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(15) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(15) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(15) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(16) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(16) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(16) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(16) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(16) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(16) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(16) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(17) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(17) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(17) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(17) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(17) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(17) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(17) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(18) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(18) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(18) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(18) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(18) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(18) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(18) + " IS NOT NULL" +
-                        " UNION ALL " +
-                        "SELECT '" + metrics.get(19) + "' AS metric," +
-                        " SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(19) + " AS REAL) END) AS SUM_early," +
-                        " SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(19) + " AS REAL) END) AS SUM_late," +
-                        " ROUND(((SUM(CASE WHEN DMY BETWEEN (SELECT midDate FROM DateRange) AND '" + endDate + "' THEN CAST(" + metrics.get(19) + " AS REAL) END) -" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(19) + " AS REAL) END)) /" + 
-                        "        SUM(CASE WHEN DMY BETWEEN '" + startDate + "' AND (SELECT midDate FROM DateRange) THEN CAST(" + metrics.get(19) + " AS REAL) END)) * 100.0, 2)" + 
-                        "        AS percent_change" + 
-                        " FROM " + stationState + " WHERE location = '" + stationId + "' AND " + metrics.get(19) + " IS NOT NULL" +
-                        ")," +
-                        " WithPercentChange AS (" +
-                        "SELECT metric, SUM_early, SUM_late," +
-                        " ROUND(((SUM_late - SUM_early) / SUM_early) * 100.0, 2) AS percent_change" +
-                        " FROM AllMetrics" +
-                        " WHERE SUM_early IS NOT NULL AND SUM_early != 0" +
-                        ")," +
-                        " MaxPositive AS (" +
-                        "SELECT * FROM WithPercentChange ORDER BY percent_change DESC LIMIT 1" +
-                        ")," +
-                        " MaxNegative AS (" +
-                        "SELECT * FROM WithPercentChange ORDER BY percent_change ASC LIMIT 1" +
-                        ")," +
-                        " NeutralChange AS (" +
-                        "SELECT * FROM WithPercentChange ORDER BY ABS(percent_change) ASC LIMIT 1" +
-                        ")" +
-                        " SELECT * FROM UserMetric" +
-                        " UNION ALL" +
-                        " SELECT * FROM MaxPositive" +
-                        " UNION ALL" +
-                        " SELECT * FROM MaxNegative" +
-                        " UNION ALL" +
-                        " SELECT * FROM NeutralChange;";
-
-        // Results into result set
-        ResultSet result2 = statement.executeQuery(query2);
-
-        // Process results
-        while (result2.next()) {
-            // Create SearchResult object
-            SearchResult searchResults = new SearchResult();
-
-            // Add result to Object
-            searchResults.metric = result2.getString("metric");
-            searchResults.sumEarly = result2.getString("SUM_early");
-            searchResults.sumLate = result2.getString("SUM_late");
-            searchResults.percentChange = result2.getString("percent_change");
-
-            // Add search result to the ArrayList
-            SearchResults.add(searchResults);
+        if (!java.util.Arrays.asList(CLIMATE_TABLES).contains(stationState)) {
+            throw new SQLException("Unknown station state.");
         }
-
-        // Close the statement because we are done with it
-        statement.close();
-
+        StringBuilder aggregates = new StringBuilder();
+        StringBuilder metricRows = new StringBuilder();
+        for (int i = 0; i < metrics.size(); i++) {
+            String column = metrics.get(i);
+            if (i > 0) {
+                aggregates.append(", ");
+                metricRows.append(" UNION ALL ");
+            }
+            aggregates.append("SUM(CASE WHEN DMY BETWEEN ?1 AND midDate THEN CAST(")
+                    .append(column).append(" AS REAL) END) AS early").append(i)
+                    .append(", SUM(CASE WHEN DMY BETWEEN midDate AND ?2 THEN CAST(")
+                    .append(column).append(" AS REAL) END) AS late").append(i);
+            metricRows.append("SELECT '").append(column).append("' AS metric, early")
+                    .append(i).append(" AS SUM_early, late").append(i)
+                    .append(" AS SUM_late, ").append(i).append(" AS position FROM Totals");
+        }
+        String query = "WITH DateRange AS ("
+                + "SELECT date((julianday(?2) + julianday(?1)) / 2) AS midDate), "
+                + "Totals AS (SELECT " + aggregates + " FROM " + stationState
+                + " CROSS JOIN DateRange WHERE Location = ?3 AND DMY BETWEEN ?1 AND ?2), "
+                + "MetricRows AS (" + metricRows + "), "
+                + "Changes AS (SELECT metric, SUM_early, SUM_late, "
+                + "ROUND(((SUM_late - SUM_early) / SUM_early) * 100.0, 2) AS percent_change, "
+                + "position FROM MetricRows), "
+                + "Alternatives AS (SELECT * FROM Changes WHERE position > 0 "
+                + "AND SUM_early IS NOT NULL AND SUM_early != 0), "
+                + "MaxPositive AS (SELECT * FROM Alternatives ORDER BY percent_change DESC, position LIMIT 1), "
+                + "MaxNegative AS (SELECT * FROM Alternatives ORDER BY percent_change ASC, position LIMIT 1), "
+                + "NeutralChange AS (SELECT * FROM Alternatives ORDER BY ABS(percent_change), position LIMIT 1) "
+                + "SELECT * FROM Changes WHERE position = 0 UNION ALL SELECT * FROM MaxPositive "
+                + "UNION ALL SELECT * FROM MaxNegative UNION ALL SELECT * FROM NeutralChange";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setQueryTimeout(30);
+            statement.setString(1, startDate);
+            statement.setString(2, endDate);
+            statement.setString(3, stationId);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    SearchResult row = new SearchResult();
+                    row.metric = rows.getString("metric");
+                    row.sumEarly = rows.getString("SUM_early");
+                    row.sumLate = rows.getString("SUM_late");
+                    row.percentChange = rows.getString("percent_change");
+                    results.add(row);
+                }
+            }
+        }
     } catch (SQLException e) {
-        // If there is an error, lets just pring the error
         System.err.println(e.getMessage());
-    } finally {
-        // Safety code to cleanup
-        try {
-            if (connection != null) {
-                connection.close();
-            }
-        } catch (SQLException e) {
-            // connection close failed.
-            System.err.println(e.getMessage());
-        }
     }
-
-    // Return ArrayList
-    return SearchResults;
+    return results;
 }
+
 public String getStationID(String name) {
     String stationId = null;
     Connection connection = null;
@@ -1857,142 +1627,63 @@ public ArrayList<SearchResult> getSimilarStations(String stationID, String metri
 
     public ArrayList<SearchResult> get3bResults(String metric, String startDate, String endDate, int limit) throws SQLException {
         ArrayList<SearchResult> results = new ArrayList<>();
-        
         ArrayList<String> metrics = getMetrics();
-
-        Connection conn = DriverManager.getConnection(DATABASE);
-        Statement stmt = conn.createStatement();
-
-        String startYear = startDate.split("\\-")[0];
-        String endYear = endDate.split("\\-")[0];
-        String midYear = String.format("%d", (Integer.parseInt(endYear) + Integer.parseInt(startYear)) / 2);
-
-        String query =
-        "WITH CombinedData AS (" + //
-        "    SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM AAT" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM AET" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM NSW" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM NT" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM QLD" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM SA" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM TAS" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM VIC" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM WA" + //
-        ")" + //
-        "SELECT SUM(" + metric + ") AS TotalMetric FROM CombinedData WHERE (Year BETWEEN '" + startYear + "'  AND '" + midYear + "');";
-
-        ResultSet rs = stmt.executeQuery(query);
-
-        float metricFirst = 0, metricSecond = 0;
-
-        while (rs.next()) {
-            metricFirst = Float.parseFloat(rs.getString("TotalMetric"));
-        }
-
-        query =
-        "WITH CombinedData AS (" + //
-        "    SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM AAT" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM AET" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM NSW" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM NT" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM QLD" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM SA" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM TAS" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM VIC" + //
-        "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metric + " FROM WA" + //
-        ")" + //
-        "SELECT SUM(" + metric + ") AS TotalMetric FROM CombinedData WHERE (Year BETWEEN '" + midYear + "'  AND '" + endYear + "');";
-        
-        rs = stmt.executeQuery(query);
-
-        while (rs.next()) {
-            metricSecond = Float.parseFloat(rs.getString("TotalMetric"));
-        }
-
-        float metricDif = metricSecond - metricFirst;
-        float metricPercChange = (metricDif / metricFirst) * 100;
-
-        SearchResult sr = new SearchResult();
-
-        sr.metric = metric;
-        sr.avgPeriod1 = String.format("%.2f", metricFirst);
-        sr.avgPeriod2 = String.format("%.2f", metricSecond);
-        sr.diffFromRef = String.format("%.2f (selected)", 0.0);
-        sr.percentChange = String.format("%.2f %%", metricPercChange);
-        sr.sumEarly = startYear;
-        sr.sumLate = endYear;
-        sr.date = midYear;
-
-        results.add(sr);
-
-        int cap = limit + 1 > metrics.size() ? metrics.size() : limit + 1;
-
+        int cap = Math.min(limit + 1, metrics.size());
+        ArrayList<String> selected = new ArrayList<>();
+        selected.add(metric);
         for (int i = 0; i < cap; i++) {
-            if (metrics.get(i).equals(metric)) {
-                continue;
-            }
-
-            query =
-            "WITH CombinedData AS (" + //
-            "    SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM AAT" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM AET" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM NSW" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM NT" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM QLD" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM SA" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM TAS" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM VIC" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM WA" + //
-            ")" + //
-            "SELECT SUM(" + metrics.get(i) + ") AS TotalMetric FROM CombinedData WHERE (Year BETWEEN '" + startYear + "'  AND '" + midYear + "');";
-
-            rs = stmt.executeQuery(query);
-
-            float first = 0, second = 0;
-
-            while (rs.next()) {
-                first = Float.parseFloat(rs.getString("TotalMetric"));
-            }
-
-            query =
-            "WITH CombinedData AS (" + //
-            "    SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM AAT" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM AET" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM NSW" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM NT" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM QLD" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM SA" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM TAS" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM VIC" + //
-            "    UNION ALL SELECT Location, STRFTIME('%Y', DMY) as Year, " + metrics.get(i) + " FROM WA" + //
-            ")" + //
-            "SELECT SUM(" + metrics.get(i) + ") AS TotalMetric FROM CombinedData WHERE (Year BETWEEN '" + midYear + "'  AND '" + endYear + "');";
-
-            rs = stmt.executeQuery(query);
-
-            while (rs.next()) {
-                second = Float.parseFloat(rs.getString("TotalMetric"));
-            }
-
-            float dif = second - first;
-            float percChange = (dif / first) * 100;
-
-            float difFromMetric = metricPercChange - percChange;
-
-            sr = new SearchResult();
-
-            sr.metric = metrics.get(i);
-            sr.avgPeriod1 = String.format("%.2f", first);
-            sr.avgPeriod2 = String.format("%.2f", second);
-            sr.diffFromRef = String.format("%.2f", difFromMetric);
-            sr.percentChange = String.format("%.2f %%", percChange);
-            sr.sumEarly = startYear;
-            sr.sumLate = endYear;
-            sr.date = midYear;
-
-            results.add(sr);
+            if (!metrics.get(i).equals(metric)) selected.add(metrics.get(i));
         }
-
+        String startYear = startDate.split("-")[0];
+        String endYear = endDate.split("-")[0];
+        String midYear = String.valueOf((Integer.parseInt(startYear) + Integer.parseInt(endYear)) / 2);
+        String afterMidYear = String.valueOf(Integer.parseInt(midYear) + 1);
+        String afterEndYear = String.valueOf(Integer.parseInt(endYear) + 1);
+        StringBuilder union = new StringBuilder();
+        for (String table : CLIMATE_TABLES) {
+            if (union.length() > 0) union.append(" UNION ALL ");
+            union.append("SELECT DMY, ").append(String.join(", ", selected))
+                    .append(" FROM ").append(table)
+                    .append(" WHERE DMY >= ?1 AND DMY < ?4");
+        }
+        StringBuilder aggregates = new StringBuilder();
+        for (int i = 0; i < selected.size(); i++) {
+            if (i > 0) aggregates.append(", ");
+            aggregates.append("SUM(CASE WHEN DMY >= ?1 AND DMY < ?2 THEN ")
+                    .append(selected.get(i)).append(" END) AS early").append(i)
+                    .append(", SUM(CASE WHEN DMY >= ?3 AND DMY < ?4 THEN ")
+                    .append(selected.get(i)).append(" END) AS late").append(i);
+        }
+        String query = "WITH CombinedData AS (" + union + ") SELECT " + aggregates + " FROM CombinedData";
+        try (Connection connection = DriverManager.getConnection(DATABASE);
+             PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, startYear + "-01-01");
+            statement.setString(2, afterMidYear + "-01-01");
+            statement.setString(3, midYear + "-01-01");
+            statement.setString(4, afterEndYear + "-01-01");
+            try (ResultSet totals = statement.executeQuery()) {
+                totals.next();
+                float referenceChange = 0;
+                for (int i = 0; i < selected.size(); i++) {
+                    // Retain the original float arithmetic and displayed rounding.
+                    float early = Float.parseFloat(totals.getString("early" + i));
+                    float late = Float.parseFloat(totals.getString("late" + i));
+                    float change = ((late - early) / early) * 100;
+                    if (i == 0) referenceChange = change;
+                    SearchResult row = new SearchResult();
+                    row.metric = selected.get(i);
+                    row.avgPeriod1 = String.format("%.2f", early);
+                    row.avgPeriod2 = String.format("%.2f", late);
+                    row.diffFromRef = i == 0 ? String.format("%.2f (selected)", 0.0)
+                            : String.format("%.2f", referenceChange - change);
+                    row.percentChange = String.format("%.2f %%", change);
+                    row.sumEarly = startYear;
+                    row.sumLate = endYear;
+                    row.date = midYear;
+                    results.add(row);
+                }
+            }
+        }
         return results;
     }
 

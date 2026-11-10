@@ -1,61 +1,37 @@
 # Australian Climate Data Explorer
 
-A Java web application for exploring historical Australian climate data through filtering, aggregation, comparison, and similarity analysis.
+Explore Australian weather records from 1970 to 2020. Search by weather station,
+state, date, or weather measurement. Compare stations and measurements, check
+data quality, and download results as CSV files.
 
-The application was developed as a team project at RMIT University using Bureau of Meteorology climate data covering 1970–2020.
+This project was built at RMIT University using Bureau of Meteorology data.
 
-## Live Demo
+## Team
 
-> This project is deployed on Render's free tier. The service may experience cold-start delays after periods of inactivity, and data-intensive queries may run more slowly than they do locally.
+- Azhaanul Haque Farooqui
+- Kieran Collins
+- Sam Virgona
 
-**Live site:** [Link](https://australian-climate-data-explorer.onrender.com)
+## Try it
 
-## Features
+[Open the climate explorer](https://australian-climate-data-explorer.onrender.com).
+The site runs on Render's free plan, so it may take a little while to wake up.
 
-- Explore climate data by Australian weather station
-- Filter weather stations by location and climate metric
-- Analyse climate measurements across configurable date ranges
-- Explore data quality information
-- Compare weather stations using percentage change between time periods
-- Compare climate metrics using similarity analysis
-- Analyse relationships between climate metrics
-- Export query results as CSV files
-- View dataset and project information through a web interface
+## Run it on your computer
 
-## Tech Stack
+You need Java 17 or newer and Maven.
 
-### Backend
+1. Extract `database/climate.db.zip` into the `database` folder.
+2. Run `mvn package` from the project folder.
+3. Run `java -jar target/studio-project-eqv-sep23-1.0-SNAPSHOT.jar`.
+4. Open [localhost:7001](http://localhost:7001) in your browser.
 
-- Java 17
-- Javalin
-- JDBC
-- SQLite
-- Maven
+The first run adds database indexes to speed up searches. It takes a few extra
+seconds and uses about 67 MB more disk space. Later runs reuse those indexes.
+The weather records stay the same.
 
-### Frontend
+## Check the code
 
-- Thymeleaf
-- HTML
-- CSS
+Run `mvn test`. The tests use a separate temporary database.
 
-### Deployment
-
-- Docker
-- Render
-
-## Architecture
-
-```text
-Browser
-   |
-   v
-Javalin Web Server
-   |
-   v
-Application / Query Logic
-   |
-   v
-JDBC
-   |
-   v
-SQLite Climate Database
+The app uses Java, Javalin, SQLite, HTML, and CSS. Docker is used to run it on Render.
